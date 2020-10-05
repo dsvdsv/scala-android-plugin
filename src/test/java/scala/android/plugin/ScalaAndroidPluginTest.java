@@ -11,7 +11,7 @@ import static org.junit.Assert.*;
 /**
  * A simple unit test for the 'scala.android.plugin.greeting' plugin.
  */
-public class ScalaAndroidPluginPluginTest {
+public class ScalaAndroidPluginTest {
     @Test public void pluginRegistersATask() {
         // Create a test project and apply the plugin
         Project project = ProjectBuilder.builder().build();

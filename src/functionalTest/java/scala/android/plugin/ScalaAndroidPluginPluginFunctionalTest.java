@@ -24,19 +24,19 @@ public class ScalaAndroidPluginPluginFunctionalTest {
         writeString(new File(projectDir, "settings.gradle"), "");
         writeString(new File(projectDir, "build.gradle"),
             "plugins {" +
-            "  id('scala.android.plugin.greeting')" +
+            "  id('scala.android.plugin')" +
             "}");
 
         // Run the build
         GradleRunner runner = GradleRunner.create();
         runner.forwardOutput();
         runner.withPluginClasspath();
-        runner.withArguments("greeting");
+        runner.withArguments("compileJava");
         runner.withProjectDir(projectDir);
         BuildResult result = runner.build();
 
         // Verify the result
-        assertTrue(result.getOutput().contains("Hello from plugin 'scala.android.plugin.greeting'"));
+        assertTrue(result.getOutput().contains("Hello from plugin 'scala.android.plugin'"));
     }
 
     private void writeString(File file, String string) throws IOException {
