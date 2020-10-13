@@ -13,8 +13,8 @@ buildscript {
 }
 
 plugins {
-    // Apply the Java Gradle plugin development plugin to add support for developing Gradle plugins
     id 'java-gradle-plugin'
+    id 'groovy'
 }
 
 repositories {
@@ -25,15 +25,18 @@ repositories {
 dependencies {
     implementation "com.android.tools.build:gradle:$androidVersion"
     // Use JUnit test framework for unit tests
+    testImplementation('org.codehaus.groovy:groovy-all:2.5.7')
+    testImplementation('org.spockframework:spock-core:1.3-groovy-2.5')
+
     testImplementation 'junit:junit:4.13'
 }
 
 gradlePlugin {
     // Define the plugin
     plugins {
-        greeting {
-            id = 'scala.android.plugin.greeting'
-            implementationClass = 'scala.android.plugin.ScalaAndroidPluginPlugin'
+        scalaAndroidPlugin {
+            id = 'scala.android'
+            implementationClass = 'scala.android.plugin.ScalaAndroidPlugin'
         }
     }
 }
@@ -41,6 +44,10 @@ gradlePlugin {
 // Add a source set for the functional test suite
 sourceSets {
     functionalTest {
+        groovy.srcDir file('src/functionalTest/groovy')
+        resources.srcDir file('src/functionalTest/resources')
+        compileClasspath += sourceSets.main.output + configurations.testRuntime
+        runtimeClasspath += output + compileClasspath
     }
 }
 
