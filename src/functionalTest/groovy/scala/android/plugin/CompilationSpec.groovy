@@ -59,7 +59,7 @@ class CompilationSpec extends AndroidFunctionalSpec {
         """
 
         when:
-        runDebug('assemble', 'test')
+        run('assemble', 'test')
 
         then:
         noExceptionThrown()
