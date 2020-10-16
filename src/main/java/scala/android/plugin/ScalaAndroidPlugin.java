@@ -16,6 +16,8 @@ import org.gradle.api.internal.artifacts.configurations.ConfigurationInternal;
 import org.gradle.api.internal.tasks.DefaultScalaSourceSet;
 import org.gradle.api.internal.tasks.scala.DefaultScalaPluginExtension;
 import org.gradle.api.model.ObjectFactory;
+import org.gradle.api.plugins.internal.JvmPluginsHelper;
+import org.gradle.api.plugins.scala.ScalaBasePlugin;
 import org.gradle.api.plugins.scala.ScalaPluginExtension;
 import org.gradle.api.tasks.ScalaRuntime;
 import org.gradle.api.tasks.ScalaSourceSet;
@@ -38,7 +40,6 @@ import static org.gradle.api.attributes.Usage.USAGE_ATTRIBUTE;
 public class ScalaAndroidPlugin implements Plugin<Project> {
     private static final Logger LOGGER = LoggerFactory.getLogger(ScalaAndroidPlugin.class);
 
-    public static final String DEFAULT_ZINC_VERSION = "1.3.5";
     private static final String DEFAULT_SCALA_ZINC_VERSION = "2.12";
 
     private static final List<String> ANDROID_PLUGIN_NAMES = Arrays.asList(
@@ -162,7 +163,7 @@ public class ScalaAndroidPlugin implements Plugin<Project> {
         scalaTask.setScalaClasspath(scalaRuntime.inferScalaClasspath(javaTask.getClasspath()));
 
         var zinc = project.getConfigurations().getByName("zinc");
-        var plugins = project.getConfigurations().getByName("scalaCompilerPlugins");
+        var plugins = project.getConfigurations().getByName(ScalaBasePlugin.SCALA_COMPILER_PLUGINS_CONFIGURATION_NAME);
 
         scalaTask.setScalaCompilerPlugins(plugins.getAsFileTree());
         scalaTask.setZincClasspath(zinc.getAsFileTree());
@@ -246,7 +247,7 @@ public class ScalaAndroidPlugin implements Plugin<Project> {
             compile.getConventionMapping().map("scalaCompilerPlugins", new Callable<FileCollection>() {
                 @Override
                 public FileCollection call() throws Exception {
-                    return project.getConfigurations().getAt("scalaCompilerPlugins");
+                    return project.getConfigurations().getAt(ScalaBasePlugin.SCALA_COMPILER_PLUGINS_CONFIGURATION_NAME);
                 }
             });
         });
@@ -255,9 +256,10 @@ public class ScalaAndroidPlugin implements Plugin<Project> {
     private void configureConfigurations(final Project project, final Usage incrementalAnalysisUsage, ScalaPluginExtension scalaPluginExtension) {
         var dependencyHandler = project.getDependencies();
 
-        var plugins = (ConfigurationInternal) project.getConfigurations().create("scalaCompilerPlugins");
+        var plugins = (ConfigurationInternal) project.getConfigurations().create(ScalaBasePlugin.SCALA_COMPILER_PLUGINS_CONFIGURATION_NAME);
         plugins.setTransitive(false);
         plugins.setCanBeConsumed(false);
+        JvmPluginsHelper.configureAttributesForRuntimeClasspath(plugins, this.objectFactory);
 
         var zinc = project.getConfigurations().create("zinc");
         zinc.setVisible(false);
@@ -265,7 +267,7 @@ public class ScalaAndroidPlugin implements Plugin<Project> {
 
         zinc.getResolutionStrategy().eachDependency(rule -> {
             if (rule.getRequested().getGroup().equals("com.typesafe.zinc") && rule.getRequested().getName().equals("zinc")) {
-                rule.useTarget("org.scala-sbt:zinc_" + DEFAULT_SCALA_ZINC_VERSION + ":" + DEFAULT_ZINC_VERSION);
+                rule.useTarget("org.scala-sbt:zinc_" + DEFAULT_SCALA_ZINC_VERSION + ":" + ScalaBasePlugin.DEFAULT_ZINC_VERSION);
                 rule.because("Typesafe Zinc is no longer maintained.");
             }
         });
@@ -278,7 +280,7 @@ public class ScalaAndroidPlugin implements Plugin<Project> {
                     if (component.getModuleVersion() != null && component.getModuleVersion().getName().equals("scala-library")) {
                         if (!component.getModuleVersion().getVersion().startsWith(DEFAULT_SCALA_ZINC_VERSION)) {
                             throw new InvalidUserCodeException("The version of 'scala-library' was changed while using the default Zinc version. " +
-                                    "Version " + component.getModuleVersion().getVersion() + " is not compatible with org.scala-sbt:zinc_" + DEFAULT_SCALA_ZINC_VERSION + ":" + DEFAULT_ZINC_VERSION);
+                                    "Version " + component.getModuleVersion().getVersion() + " is not compatible with org.scala-sbt:zinc_" + DEFAULT_SCALA_ZINC_VERSION + ":" + ScalaBasePlugin.DEFAULT_ZINC_VERSION);
                         }
                     }
                 });
