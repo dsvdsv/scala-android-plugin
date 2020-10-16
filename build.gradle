@@ -7,6 +7,8 @@ buildscript {
 plugins {
     id 'java-gradle-plugin'
     id 'groovy'
+    id 'maven-publish'
+    id "com.jfrog.bintray" version "1.8.5"
 }
 
 repositories {
@@ -55,4 +57,42 @@ tasks.register('functionalTest', Test) {
 check {
     // Run the functional tests as part of `check`
     dependsOn(tasks.functionalTest)
+}
+
+java {
+    withJavadocJar()
+    withSourcesJar()
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            groupId = 'scala.android.plugin'
+            artifactId = 'scala-android-plugin'
+            version = new Date().format('yyyyMMdd.HHmm')
+
+            pom {
+                name = "Scala android plugin"
+                description = "Scala android plugin"
+                url = "https://github.com/dsvdsv/scala-android-plugin"
+            }
+        }
+    }
+}
+
+bintray {
+    user = project.hasProperty('bintrayUser') ? project.property('bintrayUser') : System.getenv('BINTRAY_USER')
+    key = project.hasProperty('bintrayApiKey') ? project.property('bintrayApiKey') : System.getenv('BINTRAY_API_KEY')
+    publications = ['mavenJava']
+    pkg {
+        repo = 'maven'
+        name = 'scala-android-plugin'
+        licenses = ['Apache-2.0']
+        vcsUrl = 'https://github.com/dsvdsv/scala-android-plugin'
+        version {
+            name = '0.1'
+            released  = new Date()
+        }
+    }
 }
