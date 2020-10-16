@@ -2,14 +2,6 @@ buildscript {
     ext {
         androidVersion = '4.0.0'
     }
-//    repositories {
-//        google()
-//        jcenter()
-//
-//    }
-//    dependencies {
-//        classpath "com.android.tools.build:gradle:$androidVersion"
-//    }
 }
 
 plugins {
