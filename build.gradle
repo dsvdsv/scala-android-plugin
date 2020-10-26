@@ -93,8 +93,7 @@ bintray {
         licenses = ['Apache-2.0']
         vcsUrl = 'https://github.com/dsvdsv/scala-android-plugin'
         version {
-            name = '0.1'
-            released  = new Date()
+            name = project.version
         }
     }
 }
