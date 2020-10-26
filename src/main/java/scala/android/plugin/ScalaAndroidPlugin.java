@@ -22,6 +22,7 @@ import org.gradle.api.plugins.scala.ScalaPluginExtension;
 import org.gradle.api.tasks.ScalaRuntime;
 import org.gradle.api.tasks.ScalaSourceSet;
 import org.gradle.api.tasks.scala.ScalaCompile;
+import org.gradle.api.tasks.scala.ScalaCompileOptions;
 import org.gradle.internal.reflect.Instantiator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,7 +58,7 @@ public class ScalaAndroidPlugin implements Plugin<Project> {
     }
 
     public void apply(Project project) {
-        var scalaRuntime = project.getExtensions().create("scalaRuntime", ScalaRuntime.class, project);
+        var scalaRuntime = project.getExtensions().create("scalaRuntime", AndroidScalaRuntime.class, project);
 
         var scalaPluginExtension = project.getExtensions().create(ScalaPluginExtension.class, "scala", DefaultScalaPluginExtension.class);
         var incrementalAnalysisUsage = objectFactory.named(Usage.class, "incremental-analysis");
@@ -145,7 +146,7 @@ public class ScalaAndroidPlugin implements Plugin<Project> {
         var variantName = variantData.getName();
         LOGGER.debug("Processing variant {}", variantName);
 
-        var javaTask = variantData.getJavaCompileProvider().get();
+        var javaTask = variantData.getJavaCompileProvider().getOrNull();
         if (javaTask == null) {
             LOGGER.info("javaTask it null for {}", variantName);
             return;
@@ -154,13 +155,12 @@ public class ScalaAndroidPlugin implements Plugin<Project> {
         var taskName = javaTask.getName().replace("Java", "Scala");
         var scalaTask = project.getTasks().create(taskName, ScalaCompile.class);
 
-        scalaTask.setTargetCompatibility(javaTask.getTargetCompatibility());
-        scalaTask.setSourceCompatibility(javaTask.getSourceCompatibility());
-
         scalaTask.setDestinationDir(javaTask.getDestinationDir());
         scalaTask.setClasspath(javaTask.getClasspath());
         scalaTask.dependsOn(javaTask.getDependsOn());
         scalaTask.setScalaClasspath(scalaRuntime.inferScalaClasspath(javaTask.getClasspath()));
+
+        configureCompileOptions(scalaTask.getScalaCompileOptions(), androidExtension);
 
         var zinc = project.getConfigurations().getByName("zinc");
         var plugins = project.getConfigurations().getByName(ScalaBasePlugin.SCALA_COMPILER_PLUGINS_CONFIGURATION_NAME);
@@ -230,6 +230,21 @@ public class ScalaAndroidPlugin implements Plugin<Project> {
         javaTask.finalizedBy(scalaTask);
     }
 
+    private static void configureCompileOptions(ScalaCompileOptions scalaCompileOptions, BaseExtension androidExtension) {
+        var compileOptions = androidExtension.getCompileOptions();
+
+        var javaVersion =  TargetVersionDetector.javaVersion(scalaCompileOptions.getAdditionalParameters());
+        LOGGER.info("Detect target platform version {}", javaVersion);
+
+        if (compileOptions.getTargetCompatibility().compareTo(javaVersion) < 0) {
+            compileOptions.setTargetCompatibility(javaVersion);
+        }
+
+        if (compileOptions.getSourceCompatibility().compareTo(javaVersion) < 0) {
+            compileOptions.setSourceCompatibility(javaVersion);
+        }
+    }
+
     private static void configureCompileDefaults(final Project project, final ScalaRuntime scalaRuntime) {
         project.getTasks().withType(ScalaCompile.class).configureEach(compile -> {
             compile.getConventionMapping().map("scalaClasspath", new Callable<FileCollection>() {
@@ -275,16 +290,14 @@ public class ScalaAndroidPlugin implements Plugin<Project> {
         zinc.defaultDependencies(dependencies -> {
             dependencies.add(dependencyHandler.create("org.scala-sbt:zinc_" + DEFAULT_SCALA_ZINC_VERSION + ":" + scalaPluginExtension.getZincVersion().get()));
             // Add safeguard and clear error if the user changed the scala version when using default zinc
-            zinc.getIncoming().afterResolve(resolvableDependencies -> {
-                resolvableDependencies.getResolutionResult().allComponents(component -> {
-                    if (component.getModuleVersion() != null && component.getModuleVersion().getName().equals("scala-library")) {
-                        if (!component.getModuleVersion().getVersion().startsWith(DEFAULT_SCALA_ZINC_VERSION)) {
-                            throw new InvalidUserCodeException("The version of 'scala-library' was changed while using the default Zinc version. " +
-                                    "Version " + component.getModuleVersion().getVersion() + " is not compatible with org.scala-sbt:zinc_" + DEFAULT_SCALA_ZINC_VERSION + ":" + ScalaBasePlugin.DEFAULT_ZINC_VERSION);
-                        }
+            zinc.getIncoming().afterResolve(resolvableDependencies -> resolvableDependencies.getResolutionResult().allComponents(component -> {
+                if (component.getModuleVersion() != null && component.getModuleVersion().getName().equals("scala-library")) {
+                    if (!component.getModuleVersion().getVersion().startsWith(DEFAULT_SCALA_ZINC_VERSION)) {
+                        throw new InvalidUserCodeException("The version of 'scala-library' was changed while using the default Zinc version. " +
+                                "Version " + component.getModuleVersion().getVersion() + " is not compatible with org.scala-sbt:zinc_" + DEFAULT_SCALA_ZINC_VERSION + ":" + ScalaBasePlugin.DEFAULT_ZINC_VERSION);
                     }
-                });
-            });
+                }
+            }));
         });
 
         var incrementalAnalysisElements = project.getConfigurations().create("incrementalScalaAnalysisElements");

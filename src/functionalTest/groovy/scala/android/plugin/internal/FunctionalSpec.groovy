@@ -21,6 +21,15 @@ abstract class FunctionalSpec extends Specification implements FileHelper {
                 .withArguments(argsList)
     }
 
+    GradleRunner runner(File dir, String... args) {
+        def argsList = args.toList()
+        return GradleRunner.create()
+                .withProjectDir(dir)
+                .forwardOutput()
+                .withPluginClasspath()
+                .withArguments(argsList)
+    }
+
     BuildResult runDebug(String... args) {
         runner(args).withDebug(true)
                 .build()

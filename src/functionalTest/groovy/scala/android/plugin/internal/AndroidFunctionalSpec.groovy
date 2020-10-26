@@ -46,10 +46,6 @@ class AndroidFunctionalSpec extends FunctionalSpec {
                     testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
                 }
 
-                compileOptions {
-                    sourceCompatibility JavaVersion.VERSION_1_8
-                    targetCompatibility JavaVersion.VERSION_1_8
-                }
                 buildTypes {
                     debug {
                         proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
@@ -131,11 +127,7 @@ class AndroidFunctionalSpec extends FunctionalSpec {
                     versionName "1.0"
                     testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
                 }
-
-                compileOptions {
-                    sourceCompatibility JavaVersion.VERSION_1_8
-                    targetCompatibility JavaVersion.VERSION_1_8
-                }
+                
                 buildTypes {
                     debug {
                         proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
@@ -151,7 +143,8 @@ class AndroidFunctionalSpec extends FunctionalSpec {
             tasks.withType(ScalaCompile) {
                  scalaCompileOptions.with{
                     additionalParameters = [
-                         '-language:higherKinds'
+                         '-language:higherKinds',
+                         '-target:11'
                     ]
                  }
             }
@@ -228,7 +221,10 @@ class AndroidFunctionalSpec extends FunctionalSpec {
     private void initProject() {
         createProguardRules()
 
-        testProjectDir.newFile("gradle.properties") << 'android.useAndroidX=true'
+        testProjectDir.newFile("gradle.properties") << """
+        android.useAndroidX=true
+        android.enableJetifier=true
+        """
 
         buildFile = testProjectDir.newFile('build.gradle')
     }

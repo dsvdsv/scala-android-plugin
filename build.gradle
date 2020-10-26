@@ -16,6 +16,9 @@ repositories {
     jcenter()
 }
 
+group = 'scala.android.plugin'
+version = new Date().format('yyyyMMdd.HHmm')
+
 dependencies {
     implementation "com.android.tools.build:gradle:$androidVersion"
     // Use JUnit test framework for unit tests
@@ -68,9 +71,8 @@ publishing {
     publications {
         mavenJava(MavenPublication) {
             from components.java
-            groupId = 'scala.android.plugin'
+            groupId = group
             artifactId = 'scala-android-plugin'
-            version = new Date().format('yyyyMMdd.HHmm')
 
             pom {
                 name = "Scala android plugin"
