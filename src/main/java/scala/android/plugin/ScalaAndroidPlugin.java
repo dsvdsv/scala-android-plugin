@@ -96,7 +96,18 @@ public class ScalaAndroidPlugin implements Plugin<Project> {
 
         project.afterEvaluate(p -> {
             forEachVariant(androidExt, variant -> processVariant(variant, project, scalaRuntime, androidExt));
+            dependsOnIfPresent(p, "compileDebugUnitTestScalaWithScalac", "compileDebugScalaWithScalac");
+            dependsOnIfPresent(p, "compileReleaseUnitTestScalaWithScalac", "compileReleaseScalaWithScalac");
         });
+    }
+
+    private static void dependsOnIfPresent(Project project, String taskName1, String taskName2) {
+        var task1 = project.getTasks().findByPath(taskName1);
+        var task2 = project.getTasks().findByPath(taskName2);
+
+        if (task1 != null && task2!= null) {
+            task1.dependsOn(task2);
+        }
     }
 
     private static BasePlugin findBasePlugin(Project project) {

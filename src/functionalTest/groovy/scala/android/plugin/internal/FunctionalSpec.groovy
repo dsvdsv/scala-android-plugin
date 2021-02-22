@@ -6,28 +6,14 @@ import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 import spock.lang.Specification
 
-abstract class FunctionalSpec extends Specification implements FileHelper {
+abstract class FunctionalSpec extends GradleSpec implements FileHelper {
 
     @Rule
     TemporaryFolder testProjectDir = new TemporaryFolder()
     File buildFile
 
     GradleRunner runner(String... args) {
-        def argsList = args.toList()
-        return GradleRunner.create()
-                .withProjectDir(testProjectDir.root)
-                .forwardOutput()
-                .withPluginClasspath()
-                .withArguments(argsList)
-    }
-
-    GradleRunner runner(File dir, String... args) {
-        def argsList = args.toList()
-        return GradleRunner.create()
-                .withProjectDir(dir)
-                .forwardOutput()
-                .withPluginClasspath()
-                .withArguments(argsList)
+        runner(testProjectDir.root, args)
     }
 
     BuildResult runDebug(String... args) {
