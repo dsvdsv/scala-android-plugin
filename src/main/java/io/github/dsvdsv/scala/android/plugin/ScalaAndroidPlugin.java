@@ -43,7 +43,7 @@ import static org.gradle.api.attributes.Usage.USAGE_ATTRIBUTE;
 public class ScalaAndroidPlugin implements Plugin<Project> {
     private static final Logger LOGGER = LoggerFactory.getLogger(ScalaAndroidPlugin.class);
 
-    private static final String DEFAULT_SCALA_ZINC_VERSION = "2.12";
+    private static final String DEFAULT_SCALA_ZINC_VERSION = "2.13";
 
     private static final List<String> ANDROID_PLUGIN_NAMES = Arrays.asList(
             "com.android.internal.application", "com.android.internal.library",
