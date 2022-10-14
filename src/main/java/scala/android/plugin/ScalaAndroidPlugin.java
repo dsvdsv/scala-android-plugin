@@ -9,6 +9,9 @@ import org.gradle.api.InvalidUserCodeException;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
+import org.gradle.api.attributes.Bundling;
+import org.gradle.api.attributes.Category;
+import org.gradle.api.attributes.LibraryElements;
 import org.gradle.api.attributes.Usage;
 import org.gradle.api.file.FileCollection;
 import org.gradle.api.internal.HasConvention;
@@ -16,7 +19,6 @@ import org.gradle.api.internal.artifacts.configurations.ConfigurationInternal;
 import org.gradle.api.internal.tasks.DefaultScalaSourceSet;
 import org.gradle.api.internal.tasks.scala.DefaultScalaPluginExtension;
 import org.gradle.api.model.ObjectFactory;
-import org.gradle.api.plugins.internal.JvmPluginsHelper;
 import org.gradle.api.plugins.scala.ScalaBasePlugin;
 import org.gradle.api.plugins.scala.ScalaPluginExtension;
 import org.gradle.api.tasks.ScalaRuntime;
@@ -105,7 +107,7 @@ public class ScalaAndroidPlugin implements Plugin<Project> {
         var task1 = project.getTasks().findByPath(taskName1);
         var task2 = project.getTasks().findByPath(taskName2);
 
-        if (task1 != null && task2!= null) {
+        if (task1 != null && task2 != null) {
             task1.dependsOn(task2);
         }
     }
@@ -244,7 +246,7 @@ public class ScalaAndroidPlugin implements Plugin<Project> {
     private static void configureCompileOptions(ScalaCompileOptions scalaCompileOptions, BaseExtension androidExtension) {
         var compileOptions = androidExtension.getCompileOptions();
 
-        var javaVersion =  TargetVersionDetector.javaVersion(scalaCompileOptions.getAdditionalParameters());
+        var javaVersion = TargetVersionDetector.javaVersion(scalaCompileOptions.getAdditionalParameters());
         LOGGER.info("Detect target platform version {}", javaVersion);
 
         if (compileOptions.getTargetCompatibility().compareTo(javaVersion) < 0) {
@@ -285,7 +287,10 @@ public class ScalaAndroidPlugin implements Plugin<Project> {
         var plugins = (ConfigurationInternal) project.getConfigurations().create(ScalaBasePlugin.SCALA_COMPILER_PLUGINS_CONFIGURATION_NAME);
         plugins.setTransitive(false);
         plugins.setCanBeConsumed(false);
-        JvmPluginsHelper.configureAttributesForRuntimeClasspath(plugins, this.objectFactory);
+        plugins.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, (Usage) this.objectFactory.named(Usage.class, "java-runtime"));
+        plugins.getAttributes().attribute(Category.CATEGORY_ATTRIBUTE, (Category) this.objectFactory.named(Category.class, "library"));
+        plugins.getAttributes().attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, (LibraryElements) this.objectFactory.named(LibraryElements.class, "jar"));
+        plugins.getAttributes().attribute(Bundling.BUNDLING_ATTRIBUTE, (Bundling) this.objectFactory.named(Bundling.class, "external"));
 
         var zinc = project.getConfigurations().create("zinc");
         zinc.setVisible(false);
