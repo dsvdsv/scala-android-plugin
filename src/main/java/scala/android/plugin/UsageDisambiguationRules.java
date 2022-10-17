@@ -1,6 +1,6 @@
 package scala.android.plugin;
 
-import com.google.common.collect.ImmutableSet;
+import org.gradle.internal.impldep.com.google.common.collect.ImmutableSet;
 import org.gradle.api.attributes.AttributeDisambiguationRule;
 import org.gradle.api.attributes.MultipleCandidatesDetails;
 import org.gradle.api.attributes.Usage;
