@@ -8,9 +8,10 @@ See also [sample projects](https://github.com/dsvdsv/android-fp-sample)
 
 ## Supported versions
 
-| Scala  | Gradle | Android Plugin      |
-| ------ | ------ | ------------------- |
-| 2.13.* | 6.6    | 4.0.0, 4.0.2        |
+| Scala  | Gradle | Android Plugin |
+| ------ | ------ |----------------|
+| 2.13.* | 6.6    | 4.0.0, 4.0.2   |
+| 2.13.* | 7.0.2    | 7.0.0          |
 
 ## Installation
 

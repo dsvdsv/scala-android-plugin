@@ -36,7 +36,7 @@ class AndroidFunctionalSpec extends FunctionalSpec {
             }
             
             android {
-                compileSdkVersion 28
+                compileSdkVersion 30
                 buildToolsVersion "29.0.3"
                 defaultConfig {              
                     minSdkVersion 28
@@ -116,7 +116,7 @@ class AndroidFunctionalSpec extends FunctionalSpec {
             }
             
             android {
-                compileSdkVersion 29
+                compileSdkVersion 30
                 buildToolsVersion "29.0.3"
 
                 defaultConfig {
@@ -221,11 +221,20 @@ class AndroidFunctionalSpec extends FunctionalSpec {
     private void initProject() {
         createProguardRules()
 
-        testProjectDir.newFile("gradle.properties") << """
+        newFile("gradle.properties") << """
         android.useAndroidX=true
         android.enableJetifier=true
         """
 
-        buildFile = testProjectDir.newFile('build.gradle')
+        buildFile = newFile('build.gradle')
+    }
+
+    File newFile(String fileName) throws IOException {
+        File file = new File(testProjectDir, fileName);
+        if (!file.createNewFile()) {
+            throw new IOException(
+                    "a file with the name \'" + fileName + "\' already exists in the test folder");
+        }
+        return file;
     }
 }

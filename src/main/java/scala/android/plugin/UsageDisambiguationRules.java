@@ -1,20 +1,21 @@
 package scala.android.plugin;
 
-import org.gradle.internal.impldep.com.google.common.collect.ImmutableSet;
+
 import org.gradle.api.attributes.AttributeDisambiguationRule;
 import org.gradle.api.attributes.MultipleCandidatesDetails;
 import org.gradle.api.attributes.Usage;
 
 import javax.inject.Inject;
+import java.util.Set;
 
 class UsageDisambiguationRules implements AttributeDisambiguationRule<Usage> {
-    private final ImmutableSet<Usage> expectedUsages;
+    private final Set<Usage> expectedUsages;
     private final Usage javaRuntime;
 
     @Inject
     UsageDisambiguationRules(Usage incrementalAnalysis, Usage javaApi, Usage javaRuntime) {
         this.javaRuntime = javaRuntime;
-        this.expectedUsages = ImmutableSet.of(incrementalAnalysis, javaApi, javaRuntime);
+        this.expectedUsages = Set.of(incrementalAnalysis, javaApi, javaRuntime);
     }
 
     @Override
