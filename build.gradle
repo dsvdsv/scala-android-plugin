@@ -84,7 +84,6 @@ java {
 publishing {
     publications {
         mavenJava(MavenPublication) {
-            customizePom(pom)
             artifactId = 'scala-android-plugin'
             groupId group
             version version
