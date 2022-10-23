@@ -22,11 +22,11 @@ class AndroidFunctionalSpec extends FunctionalSpec {
             }
         
             plugins {
-                id 'scala.android' apply false
+                id 'io.github.dsvdsv.scala-android' apply false
             }
             
             apply plugin: 'com.android.library'
-            apply plugin: 'scala.android'
+            apply plugin: 'io.github.dsvdsv.scala-android'
             
             allprojects {
                 repositories {
@@ -102,11 +102,11 @@ class AndroidFunctionalSpec extends FunctionalSpec {
             }
         
             plugins {
-                id 'scala.android' apply false
+                id 'io.github.dsvdsv.scala-android' apply false
             }
             
             apply plugin: 'com.android.application'
-            apply plugin: 'scala.android'
+            apply plugin: 'io.github.dsvdsv.scala-android'
             
             allprojects {
                 repositories {

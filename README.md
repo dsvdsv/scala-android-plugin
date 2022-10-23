@@ -32,7 +32,7 @@ buildscript {
 `build.gradle`
 ```groovy
 apply plugin: 'com.android.application'
-apply plugin: 'scala.android'
+apply plugin: 'io.github.dsvdsv.scala-android'
 ```
 
 ### Add scala-library dependency

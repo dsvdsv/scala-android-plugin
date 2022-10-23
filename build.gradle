@@ -38,7 +38,7 @@ gradlePlugin {
     // Define the plugin
     plugins {
         scalaAndroidPlugin {
-            id = 'scala.android'
+            id = 'io.github.dsvdsv.scala-android'
             implementationClass = 'io.github.dsvdsv.scala.android.plugin.ScalaAndroidPlugin'
         }
     }
