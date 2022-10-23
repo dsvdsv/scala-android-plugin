@@ -84,8 +84,10 @@ java {
 publishing {
     publications {
         mavenJava(MavenPublication) {
+            customizePom(pom)
             artifactId = 'scala-android-plugin'
-            from components.java
+            groupId group
+            version version
             versionMapping {
                 usage('java-api') {
                     fromResolutionOf('runtimeClasspath')
