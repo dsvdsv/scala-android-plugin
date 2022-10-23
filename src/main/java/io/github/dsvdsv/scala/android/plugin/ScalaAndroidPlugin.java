@@ -1,4 +1,4 @@
-package scala.android.plugin;
+package io.github.dsvdsv.scala.android.plugin;
 
 import com.android.build.gradle.*;
 import com.android.build.gradle.api.BaseVariant;

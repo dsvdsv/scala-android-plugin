@@ -1,4 +1,4 @@
-package scala.android.plugin.internal
+package io.github.dsvdsv.scala.android.plugin.internal
 
 class AndroidFunctionalSpec extends FunctionalSpec {
 
@@ -37,10 +37,10 @@ class AndroidFunctionalSpec extends FunctionalSpec {
             
             android {
                 compileSdkVersion 30
-                buildToolsVersion "29.0.3"
+                buildToolsVersion "30.0.2"
                 defaultConfig {              
                     minSdkVersion 28
-                    targetSdkVersion 29
+                    targetSdkVersion 30
                     versionCode 1
                     versionName "1.0"
                     testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -117,12 +117,12 @@ class AndroidFunctionalSpec extends FunctionalSpec {
             
             android {
                 compileSdkVersion 30
-                buildToolsVersion "29.0.3"
+                buildToolsVersion "30.0.2"
 
                 defaultConfig {
                     applicationId "scala.android.test"
                     minSdkVersion 26
-                    targetSdkVersion 29
+                    targetSdkVersion 30
                     versionCode 1
                     versionName "1.0"
                     testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"

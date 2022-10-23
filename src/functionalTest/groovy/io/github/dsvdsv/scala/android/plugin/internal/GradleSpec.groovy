@@ -1,4 +1,4 @@
-package scala.android.plugin.internal
+package io.github.dsvdsv.scala.android.plugin.internal
 
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner

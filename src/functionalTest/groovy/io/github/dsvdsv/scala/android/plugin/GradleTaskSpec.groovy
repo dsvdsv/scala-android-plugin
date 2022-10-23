@@ -1,9 +1,6 @@
-package scala.android.plugin
+package io.github.dsvdsv.scala.android.plugin
 
-
-import scala.android.plugin.internal.AndroidFunctionalSpec
-
-class GradleTaskSpec extends AndroidFunctionalSpec {
+class GradleTaskSpec extends io.github.dsvdsv.scala.android.plugin.internal.AndroidFunctionalSpec {
 
     def "test android app"() {
         given:

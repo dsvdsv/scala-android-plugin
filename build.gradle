@@ -8,6 +8,7 @@ plugins {
     id 'java-gradle-plugin'
     id 'groovy'
     id 'maven-publish'
+    id 'signing'
 }
 
 repositories {
@@ -20,7 +21,7 @@ tasks.withType(JavaCompile) {
     options.deprecation = true
 }
 
-group = 'scala.android.plugin'
+group = 'io.github.dsvdsv'
 version = new Date().format('yyyyMMdd.HHmm')
 
 dependencies {
@@ -38,7 +39,7 @@ gradlePlugin {
     plugins {
         scalaAndroidPlugin {
             id = 'scala.android'
-            implementationClass = 'scala.android.plugin.ScalaAndroidPlugin'
+            implementationClass = 'io.github.dsvdsv.scala.android.plugin.ScalaAndroidPlugin'
         }
     }
 }
@@ -83,15 +84,63 @@ java {
 publishing {
     publications {
         mavenJava(MavenPublication) {
-            from components.java
-            groupId = group
             artifactId = 'scala-android-plugin'
-
+            from components.java
+            versionMapping {
+                usage('java-api') {
+                    fromResolutionOf('runtimeClasspath')
+                }
+                usage('java-runtime') {
+                    fromResolutionResult()
+                }
+            }
             pom {
-                name = "Scala android plugin"
-                description = "Scala android plugin"
-                url = "https://github.com/dsvdsv/scala-android-plugin"
+                name = 'Scala android plugin'
+                description = 'Scala android plugin'
+                url = 'https://github.com/dsvdsv/scala-android-plugin'
+                licenses {
+                    license {
+                        name = 'The Apache License, Version 2.0'
+                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'dsvdsv'
+                        name = 'Sergey Dikanskiy'
+                        email = 'dsvdsv@yandex.ru'
+                    }
+                }
+                scm {
+                    connection = 'https://github.com/dsvdsv/scala-android-plugin'
+                    developerConnection = 'https://github.com/dsvdsv/scala-android-plugin'
+                    url = 'https://github.com/dsvdsv/scala-android-plugin'
+                }
             }
         }
+    }
+    repositories {
+        maven {
+            // change URLs to point to your repos, e.g. http://my.org/repo
+            def releasesRepoUrl = "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
+            def snapshotsRepoUrl = "https://s01.oss.sonatype.org/content/repositories/snapshots/"
+            url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+
+            credentials {
+                username = project.property("ossrhUsername")
+                password = project.property("ossrhPassword")
+            }
+        }
+    }
+}
+
+signing {
+    sign publishing.publications.mavenJava
+}
+
+
+javadoc {
+    if (JavaVersion.current().isJava11Compatible()) {
+        options.addBooleanOption('html5', true)
     }
 }
