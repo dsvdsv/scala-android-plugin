@@ -54,5 +54,5 @@ jobs:
           --output secret.gpg publish_key.gpg
 
       - name: Publish with Gradle
-        run: ./gradlew publish -Psigning.secretKeyRingFile=secret.gpg -Psigning.keyId='${{secrets.SIGNING_KEYID}}' -Psigning.password='${{secrets.SIGNING_PASSWORD}}' -PossrhUsername='${{secrets.SONATYPE_USERNAME}}' -PossrhPassword='${{secrets.SONATYPE_PASSWORD}}'
+        run: ./gradlew publish -x test -Psigning.secretKeyRingFile=secret.gpg -Psigning.keyId='${{secrets.SIGNING_KEYID}}' -Psigning.password='${{secrets.SIGNING_PASSWORD}}' -PossrhUsername='${{secrets.SONATYPE_USERNAME}}' -PossrhPassword='${{secrets.SONATYPE_PASSWORD}}'
 
