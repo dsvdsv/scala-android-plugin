@@ -87,14 +87,7 @@ publishing {
             artifactId = 'scala-android-plugin'
             groupId group
             version version
-            versionMapping {
-                usage('java-api') {
-                    fromResolutionOf('runtimeClasspath')
-                }
-                usage('java-runtime') {
-                    fromResolutionResult()
-                }
-            }
+            from(components.java)
             pom {
                 name = 'Scala android plugin'
                 description = 'Scala android plugin'
