@@ -4,10 +4,7 @@ import com.android.build.gradle.*;
 import com.android.build.gradle.api.BaseVariant;
 import com.android.build.gradle.api.SourceKind;
 import com.android.build.gradle.internal.plugins.BasePlugin;
-import org.gradle.api.GradleException;
-import org.gradle.api.InvalidUserCodeException;
-import org.gradle.api.Plugin;
-import org.gradle.api.Project;
+import org.gradle.api.*;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.attributes.Bundling;
 import org.gradle.api.attributes.Category;
@@ -23,9 +20,11 @@ import org.gradle.api.plugins.scala.ScalaBasePlugin;
 import org.gradle.api.plugins.scala.ScalaPluginExtension;
 import org.gradle.api.tasks.ScalaRuntime;
 import org.gradle.api.tasks.ScalaSourceSet;
+import org.gradle.api.tasks.TaskContainer;
 import org.gradle.api.tasks.scala.ScalaCompile;
 import org.gradle.api.tasks.scala.ScalaCompileOptions;
 import org.gradle.internal.reflect.Instantiator;
+import org.gradle.language.scala.tasks.KeepAliveMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,7 +85,7 @@ public class ScalaAndroidPlugin implements Plugin<Project> {
 
                 sourceSet.getJava().srcDir(sourceSetPath);
 
-                var scalaSourceSet = new DefaultScalaSourceSet(sourceSetName, objectFactory);
+                var scalaSourceSet = new DefaultScalaSourceSet(sourceSetName, objectFactory) {};
                 ((HasConvention) sourceSet).getConvention().getPlugins().put("scala", scalaSourceSet);
 
                 var scalaDirectorySet = scalaSourceSet.getScala();
@@ -168,11 +167,11 @@ public class ScalaAndroidPlugin implements Plugin<Project> {
         var taskName = javaTask.getName().replace("Java", "Scala");
         var scalaTask = project.getTasks().create(taskName, ScalaCompile.class);
 
-        scalaTask.setDestinationDir(javaTask.getDestinationDir());
+        scalaTask.getDestinationDirectory().set(javaTask.getDestinationDirectory());
         scalaTask.setClasspath(javaTask.getClasspath());
         scalaTask.dependsOn(javaTask.getDependsOn());
         scalaTask.setScalaClasspath(scalaRuntime.inferScalaClasspath(javaTask.getClasspath()));
-
+        scalaTask.getScalaCompileOptions().getKeepAliveMode().set(KeepAliveMode.SESSION);
         configureCompileOptions(scalaTask.getScalaCompileOptions(), androidExtension);
 
         var zinc = project.getConfigurations().getByName("zinc");
@@ -241,6 +240,23 @@ public class ScalaAndroidPlugin implements Plugin<Project> {
         LOGGER.debug("Scala classpath: {}", scalaTask.getClasspath());
 
         javaTask.finalizedBy(scalaTask);
+
+        // Prevent error from implicit dependency (AGP 8.0 or above)
+        // https://docs.gradle.org/8.1.1/userguide/validation_problems.html#implicit_dependency
+        String capitalizedName = variantName.substring(0,1).toUpperCase() + variantName.substring(1);
+        TaskContainer tasks = project.getTasks();
+        makeExplicitDependency(tasks, "merge" + capitalizedName + "JavaResource", scalaTask);
+        makeExplicitDependency(tasks, "dexBuilder" + capitalizedName, scalaTask);
+        makeExplicitDependency(tasks, "transform" + capitalizedName + "ClassesWithAsm", scalaTask);
+        makeExplicitDependency(tasks, "lintVitalAnalyze" + capitalizedName, scalaTask);
+    }
+
+    private static void makeExplicitDependency(TaskContainer tasks, String taskName, ScalaCompile scalaTask) {
+        Task task = tasks.findByName(taskName);
+        if(task != null) {
+            LOGGER.debug("{} depends on the scala task", taskName);
+            task.dependsOn(scalaTask);
+        }
     }
 
     private static void configureCompileOptions(ScalaCompileOptions scalaCompileOptions, BaseExtension androidExtension) {
