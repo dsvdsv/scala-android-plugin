@@ -10,12 +10,15 @@ import org.gradle.api.attributes.Bundling;
 import org.gradle.api.attributes.Category;
 import org.gradle.api.attributes.LibraryElements;
 import org.gradle.api.attributes.Usage;
+import org.gradle.api.file.ConfigurableFileTree;
 import org.gradle.api.file.FileCollection;
+import org.gradle.api.file.SourceDirectorySet;
 import org.gradle.api.internal.HasConvention;
 import org.gradle.api.internal.artifacts.configurations.ConfigurationInternal;
 import org.gradle.api.internal.tasks.DefaultScalaSourceSet;
 import org.gradle.api.internal.tasks.scala.DefaultScalaPluginExtension;
 import org.gradle.api.model.ObjectFactory;
+import org.gradle.api.plugins.PluginContainer;
 import org.gradle.api.plugins.scala.ScalaBasePlugin;
 import org.gradle.api.plugins.scala.ScalaPluginExtension;
 import org.gradle.api.tasks.ScalaRuntime;
@@ -23,7 +26,6 @@ import org.gradle.api.tasks.ScalaSourceSet;
 import org.gradle.api.tasks.TaskContainer;
 import org.gradle.api.tasks.scala.ScalaCompile;
 import org.gradle.api.tasks.scala.ScalaCompileOptions;
-import org.gradle.internal.reflect.Instantiator;
 import org.gradle.language.scala.tasks.KeepAliveMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,12 +52,10 @@ public class ScalaAndroidPlugin implements Plugin<Project> {
     );
 
     private final ObjectFactory objectFactory;
-    private final Instantiator instantiator;
 
     @Inject
-    public ScalaAndroidPlugin(ObjectFactory objectFactory, Instantiator instantiator) {
+    public ScalaAndroidPlugin(ObjectFactory objectFactory) {
         this.objectFactory = objectFactory;
-        this.instantiator = instantiator;
     }
 
     public void apply(Project project) {
@@ -67,7 +67,7 @@ public class ScalaAndroidPlugin implements Plugin<Project> {
         configureConfigurations(project, incrementalAnalysisUsage, scalaPluginExtension);
         configureCompileDefaults(project, scalaRuntime);
 
-        var androidPlugin = findBasePlugin(project);
+        var androidPlugin = findBasePlugin(project.getPlugins());
 
         LOGGER.debug("Found Plugin: {}", androidPlugin);
 
@@ -97,29 +97,25 @@ public class ScalaAndroidPlugin implements Plugin<Project> {
 
         project.afterEvaluate(p -> {
             forEachVariant(androidExt, variant -> processVariant(variant, project, scalaRuntime, androidExt));
-            dependsOnIfPresent(p, "compileDebugUnitTestScalaWithScalac", "compileDebugScalaWithScalac");
-            dependsOnIfPresent(p, "compileReleaseUnitTestScalaWithScalac", "compileReleaseScalaWithScalac");
+            TaskContainer tasks = project.getTasks();
+            dependsOnIfPresent(tasks, "compileDebugUnitTestScalaWithScalac", "compileDebugScalaWithScalac");
+            dependsOnIfPresent(tasks, "compileReleaseUnitTestScalaWithScalac", "compileReleaseScalaWithScalac");
         });
     }
 
-    private static void dependsOnIfPresent(Project project, String taskName1, String taskName2) {
-        var task1 = project.getTasks().findByPath(taskName1);
-        var task2 = project.getTasks().findByPath(taskName2);
-
-        if (task1 != null && task2 != null) {
-            task1.dependsOn(task2);
+    private static void dependsOnIfPresent(TaskContainer tasks, String taskName1, String taskName2) {
+        dependsOnIfPresent(tasks, taskName1, tasks.findByPath(taskName2));
+    }
+    private static void dependsOnIfPresent(TaskContainer tasks, String taskName, Task scalaTask) {
+        Task task = tasks.findByName(taskName);
+        if(task != null) {
+            task.dependsOn(scalaTask);
         }
     }
-
-    private static BasePlugin findBasePlugin(Project project) {
-        Plugin plugin = null;
-        int i = 0;
-
-        while (i < ANDROID_PLUGIN_NAMES.size() && plugin == null) {
-            var name = ANDROID_PLUGIN_NAMES.get(i);
-            plugin = project.getPlugins().findPlugin(name);
-            i++;
-        }
+    private static BasePlugin findBasePlugin(PluginContainer plugins) {
+        Plugin plugin = ANDROID_PLUGIN_NAMES.stream()
+            .map(plugins::findPlugin)
+            .findFirst().orElse(null);
 
         if (plugin instanceof BasePlugin) {
             return (BasePlugin) plugin;
@@ -164,8 +160,9 @@ public class ScalaAndroidPlugin implements Plugin<Project> {
             return;
         }
 
+        TaskContainer tasks = project.getTasks();
         var taskName = javaTask.getName().replace("Java", "Scala");
-        var scalaTask = project.getTasks().create(taskName, ScalaCompile.class);
+        var scalaTask = tasks.create(taskName, ScalaCompile.class);
 
         scalaTask.getDestinationDirectory().set(javaTask.getDestinationDirectory());
         scalaTask.setClasspath(javaTask.getClasspath());
@@ -184,7 +181,7 @@ public class ScalaAndroidPlugin implements Plugin<Project> {
 
         var additionalSourceFiles = variantData.getSourceFolders(SourceKind.JAVA)
                 .stream()
-                .map(files -> files.getDir())
+                .map(ConfigurableFileTree::getDir)
                 .toArray();
 
         LOGGER.debug("additional source files found at {}", additionalSourceFiles);
@@ -197,15 +194,13 @@ public class ScalaAndroidPlugin implements Plugin<Project> {
 
                 var scalaSourceSet = (ScalaSourceSet) hasConvention.getConvention().getPlugins().get("scala");
                 if (scalaSourceSet != null) {
-                    var allFiles = scalaSourceSet.getScala()
-                            .plus(project.getLayout().files(additionalSourceFiles));
-
+                    SourceDirectorySet srcDirSet = scalaSourceSet.getScala();
+                    var allFiles = srcDirSet.plus(project.getLayout().files(additionalSourceFiles));
                     scalaTask.setSource(allFiles);
 
-                    var scalaFiles = scalaSourceSet.getScala().getFiles().stream()
+                    var scalaFiles = srcDirSet.getFiles().stream()
                             .map(File::getAbsolutePath)
                             .collect(Collectors.toSet());
-
                     javaTask.exclude(scalaFiles);
                 }
             }
@@ -244,19 +239,10 @@ public class ScalaAndroidPlugin implements Plugin<Project> {
         // Prevent error from implicit dependency (AGP 8.0 or above)
         // https://docs.gradle.org/8.1.1/userguide/validation_problems.html#implicit_dependency
         String capitalizedName = variantName.substring(0,1).toUpperCase() + variantName.substring(1);
-        TaskContainer tasks = project.getTasks();
-        makeExplicitDependency(tasks, "merge" + capitalizedName + "JavaResource", scalaTask);
-        makeExplicitDependency(tasks, "dexBuilder" + capitalizedName, scalaTask);
-        makeExplicitDependency(tasks, "transform" + capitalizedName + "ClassesWithAsm", scalaTask);
-        makeExplicitDependency(tasks, "lintVitalAnalyze" + capitalizedName, scalaTask);
-    }
-
-    private static void makeExplicitDependency(TaskContainer tasks, String taskName, ScalaCompile scalaTask) {
-        Task task = tasks.findByName(taskName);
-        if(task != null) {
-            LOGGER.debug("{} depends on the scala task", taskName);
-            task.dependsOn(scalaTask);
-        }
+        dependsOnIfPresent(tasks, "merge" + capitalizedName + "JavaResource", scalaTask);
+        dependsOnIfPresent(tasks, "dexBuilder" + capitalizedName, scalaTask);
+        dependsOnIfPresent(tasks, "transform" + capitalizedName + "ClassesWithAsm", scalaTask);
+        dependsOnIfPresent(tasks, "lintVitalAnalyze" + capitalizedName, scalaTask);
     }
 
     private static void configureCompileOptions(ScalaCompileOptions scalaCompileOptions, BaseExtension androidExtension) {
