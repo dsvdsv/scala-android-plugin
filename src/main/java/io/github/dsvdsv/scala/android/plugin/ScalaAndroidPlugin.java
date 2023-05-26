@@ -239,6 +239,7 @@ public class ScalaAndroidPlugin implements Plugin<Project> {
         // Prevent error from implicit dependency (AGP 8.0 or above)
         // https://docs.gradle.org/8.1.1/userguide/validation_problems.html#implicit_dependency
         String capitalizedName = variantName.substring(0,1).toUpperCase() + variantName.substring(1);
+        dependsOnIfPresent(tasks, "process" + capitalizedName + "JavaRes", scalaTask);
         dependsOnIfPresent(tasks, "merge" + capitalizedName + "JavaResource", scalaTask);
         dependsOnIfPresent(tasks, "dexBuilder" + capitalizedName, scalaTask);
         dependsOnIfPresent(tasks, "transform" + capitalizedName + "ClassesWithAsm", scalaTask);
