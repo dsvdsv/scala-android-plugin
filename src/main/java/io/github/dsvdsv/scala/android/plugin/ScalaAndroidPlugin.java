@@ -6,19 +6,22 @@ import com.android.build.gradle.api.SourceKind;
 import com.android.build.gradle.internal.plugins.BasePlugin;
 import org.gradle.api.*;
 import org.gradle.api.artifacts.Configuration;
-import org.gradle.api.attributes.Bundling;
-import org.gradle.api.attributes.Category;
-import org.gradle.api.attributes.LibraryElements;
-import org.gradle.api.attributes.Usage;
+import org.gradle.api.artifacts.dsl.DependencyHandler;
+import org.gradle.api.attributes.*;
 import org.gradle.api.file.ConfigurableFileTree;
 import org.gradle.api.file.FileCollection;
 import org.gradle.api.file.SourceDirectorySet;
+import org.gradle.api.internal.ConventionMapping;
 import org.gradle.api.internal.HasConvention;
 import org.gradle.api.internal.artifacts.configurations.ConfigurationInternal;
 import org.gradle.api.internal.tasks.DefaultScalaSourceSet;
 import org.gradle.api.internal.tasks.scala.DefaultScalaPluginExtension;
 import org.gradle.api.model.ObjectFactory;
+import org.gradle.api.plugins.ExtensionAware;
+import org.gradle.api.plugins.JavaPluginExtension;
 import org.gradle.api.plugins.PluginContainer;
+import org.gradle.api.plugins.internal.DefaultJavaPluginExtension;
+import org.gradle.api.plugins.jvm.internal.JvmEcosystemUtilities;
 import org.gradle.api.plugins.scala.ScalaBasePlugin;
 import org.gradle.api.plugins.scala.ScalaPluginExtension;
 import org.gradle.api.tasks.ScalaRuntime;
@@ -26,6 +29,7 @@ import org.gradle.api.tasks.ScalaSourceSet;
 import org.gradle.api.tasks.TaskContainer;
 import org.gradle.api.tasks.scala.ScalaCompile;
 import org.gradle.api.tasks.scala.ScalaCompileOptions;
+import org.gradle.internal.logging.util.Log4jBannedVersion;
 import org.gradle.language.scala.tasks.KeepAliveMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +42,7 @@ import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import static org.gradle.api.attributes.Category.CATEGORY_ATTRIBUTE;
 import static org.gradle.api.attributes.Usage.USAGE_ATTRIBUTE;
 
 
@@ -52,10 +57,12 @@ public class ScalaAndroidPlugin implements Plugin<Project> {
     );
 
     private final ObjectFactory objectFactory;
+    private final JvmEcosystemUtilities jvmEcosystemUtilities;
 
     @Inject
-    public ScalaAndroidPlugin(ObjectFactory objectFactory) {
+    public ScalaAndroidPlugin(ObjectFactory objectFactory, JvmEcosystemUtilities jvmEcosystemUtilities) {
         this.objectFactory = objectFactory;
+        this.jvmEcosystemUtilities = jvmEcosystemUtilities;
     }
 
     public void apply(Project project) {
@@ -63,9 +70,9 @@ public class ScalaAndroidPlugin implements Plugin<Project> {
 
         var scalaPluginExtension = project.getExtensions().create(ScalaPluginExtension.class, "scala", DefaultScalaPluginExtension.class);
         var incrementalAnalysisUsage = objectFactory.named(Usage.class, "incremental-analysis");
-
-        configureConfigurations(project, incrementalAnalysisUsage, scalaPluginExtension);
-        configureCompileDefaults(project, scalaRuntime);
+        Category incrementalAnalysisCategory = objectFactory.named(Category.class, "scala-analysis");
+        configureConfigurations(project, incrementalAnalysisCategory, incrementalAnalysisUsage, scalaPluginExtension);
+        configureCompileDefaults(project, scalaRuntime, (DefaultJavaPluginExtension) extensionOf(project, JavaPluginExtension.class));
 
         var androidPlugin = findBasePlugin(project.getPlugins());
 
@@ -261,43 +268,46 @@ public class ScalaAndroidPlugin implements Plugin<Project> {
         }
     }
 
-    private static void configureCompileDefaults(final Project project, final ScalaRuntime scalaRuntime) {
+    private static void configureCompileDefaults(final Project project, final ScalaRuntime scalaRuntime, final DefaultJavaPluginExtension javaExtension) {
         project.getTasks().withType(ScalaCompile.class).configureEach(compile -> {
-            compile.getConventionMapping().map("scalaClasspath", new Callable<FileCollection>() {
-                @Override
-                public FileCollection call() {
-                    return scalaRuntime.inferScalaClasspath(compile.getClasspath());
-                }
-            });
-            compile.getConventionMapping().map("zincClasspath", new Callable<Configuration>() {
-                @Override
-                public Configuration call() {
-                    return project.getConfigurations().getAt("zinc");
-                }
-            });
-            compile.getConventionMapping().map("scalaCompilerPlugins", new Callable<FileCollection>() {
-                @Override
-                public FileCollection call() throws Exception {
-                    return project.getConfigurations().getAt(ScalaBasePlugin.SCALA_COMPILER_PLUGINS_CONFIGURATION_NAME);
-                }
-            });
+            ConventionMapping conventionMapping = compile.getConventionMapping();
+            conventionMapping.map("scalaClasspath", (Callable<FileCollection>) () -> scalaRuntime.inferScalaClasspath(compile.getClasspath()));
+            conventionMapping.map("zincClasspath", (Callable<Configuration>) () -> project.getConfigurations().getAt(ScalaBasePlugin.ZINC_CONFIGURATION_NAME));
+            conventionMapping.map("scalaCompilerPlugins", (Callable<FileCollection>) () -> project.getConfigurations().getAt(ScalaBasePlugin.SCALA_COMPILER_PLUGINS_CONFIGURATION_NAME));
+            conventionMapping.map("sourceCompatibility", () -> computeJavaSourceCompatibilityConvention(javaExtension, compile).toString());
+            conventionMapping.map("targetCompatibility", () -> computeJavaTargetCompatibilityConvention(javaExtension, compile).toString());
+            compile.getScalaCompileOptions().getKeepAliveMode().convention(KeepAliveMode.SESSION);
         });
     }
 
-    private void configureConfigurations(final Project project, final Usage incrementalAnalysisUsage, ScalaPluginExtension scalaPluginExtension) {
-        var dependencyHandler = project.getDependencies();
+    private static JavaVersion computeJavaSourceCompatibilityConvention(DefaultJavaPluginExtension javaExtension, ScalaCompile compileTask) {
+        JavaVersion rawSourceCompatibility = javaExtension.getRawSourceCompatibility();
+        if (rawSourceCompatibility != null) {
+            return rawSourceCompatibility;
+        }
+        return JavaVersion.toVersion(compileTask.getJavaLauncher().get().getMetadata().getLanguageVersion().toString());
+    }
 
-        var plugins = (ConfigurationInternal) project.getConfigurations().create(ScalaBasePlugin.SCALA_COMPILER_PLUGINS_CONFIGURATION_NAME);
+    private static JavaVersion computeJavaTargetCompatibilityConvention(DefaultJavaPluginExtension javaExtension, ScalaCompile compileTask) {
+        JavaVersion rawTargetCompatibility = javaExtension.getRawTargetCompatibility();
+        if (rawTargetCompatibility != null) {
+            return rawTargetCompatibility;
+        }
+        return JavaVersion.toVersion(compileTask.getSourceCompatibility());
+    }
+
+    private void configureConfigurations(final Project project, Category incrementalAnalysisCategory, final Usage incrementalAnalysisUsage, ScalaPluginExtension scalaPluginExtension) {
+        DependencyHandler dependencyHandler = project.getDependencies();
+
+        ConfigurationInternal plugins = (ConfigurationInternal) project.getConfigurations().create(ScalaBasePlugin.SCALA_COMPILER_PLUGINS_CONFIGURATION_NAME);
         plugins.setTransitive(false);
         plugins.setCanBeConsumed(false);
-        plugins.getAttributes().attribute(Usage.USAGE_ATTRIBUTE, (Usage) this.objectFactory.named(Usage.class, "java-runtime"));
-        plugins.getAttributes().attribute(Category.CATEGORY_ATTRIBUTE, (Category) this.objectFactory.named(Category.class, "library"));
-        plugins.getAttributes().attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, (LibraryElements) this.objectFactory.named(LibraryElements.class, "jar"));
-        plugins.getAttributes().attribute(Bundling.BUNDLING_ATTRIBUTE, (Bundling) this.objectFactory.named(Bundling.class, "external"));
+        jvmEcosystemUtilities.configureAsRuntimeClasspath(plugins);
 
-        var zinc = project.getConfigurations().create("zinc");
+        Configuration zinc = project.getConfigurations().create("zinc");
         zinc.setVisible(false);
         zinc.setDescription("The Zinc incremental compiler to be used for this Scala project.");
+        zinc.setCanBeConsumed(false);
 
         zinc.getResolutionStrategy().eachDependency(rule -> {
             if (rule.getRequested().getGroup().equals("com.typesafe.zinc") && rule.getRequested().getName().equals("zinc")) {
@@ -318,15 +328,20 @@ public class ScalaAndroidPlugin implements Plugin<Project> {
                 }
             }));
         });
+        zinc.getDependencyConstraints().add(dependencyHandler.getConstraints().create(Log4jBannedVersion.LOG4J2_CORE_COORDINATES, constraint -> constraint.version(version -> {
+            version.require(Log4jBannedVersion.LOG4J2_CORE_REQUIRED_VERSION);
+            version.reject(Log4jBannedVersion.LOG4J2_CORE_VULNERABLE_VERSION_RANGE);
+        })));
 
-        var incrementalAnalysisElements = project.getConfigurations().create("incrementalScalaAnalysisElements");
+        final Configuration incrementalAnalysisElements = project.getConfigurations().create("incrementalScalaAnalysisElements");
         incrementalAnalysisElements.setVisible(false);
         incrementalAnalysisElements.setDescription("Incremental compilation analysis files");
         incrementalAnalysisElements.setCanBeResolved(false);
         incrementalAnalysisElements.setCanBeConsumed(true);
+        incrementalAnalysisElements.getAttributes().attribute(CATEGORY_ATTRIBUTE, incrementalAnalysisCategory);
         incrementalAnalysisElements.getAttributes().attribute(USAGE_ATTRIBUTE, incrementalAnalysisUsage);
 
-        var matchingStrategy = dependencyHandler.getAttributesSchema().attribute(USAGE_ATTRIBUTE);
+        AttributeMatchingStrategy<Usage> matchingStrategy = dependencyHandler.getAttributesSchema().attribute(USAGE_ATTRIBUTE);
         matchingStrategy.getDisambiguationRules().add(UsageDisambiguationRules.class, actionConfiguration -> {
             actionConfiguration.params(incrementalAnalysisUsage);
             actionConfiguration.params(objectFactory.named(Usage.class, Usage.JAVA_API));
@@ -334,5 +349,8 @@ public class ScalaAndroidPlugin implements Plugin<Project> {
         });
     }
 
+    private static <T> T extensionOf(ExtensionAware extensionAware, Class<T> type) {
+        return extensionAware.getExtensions().getByType(type);
+    }
 
 }
