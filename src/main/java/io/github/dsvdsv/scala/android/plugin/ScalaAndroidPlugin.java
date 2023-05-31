@@ -12,15 +12,15 @@ import com.android.build.gradle.options.StringOption;
 import org.gradle.api.*;
 import org.gradle.api.file.ConfigurableFileTree;
 import org.gradle.api.file.SourceDirectorySet;
-import org.gradle.api.internal.HasConvention;
 import org.gradle.api.internal.tasks.DefaultScalaSourceSet;
 import org.gradle.api.model.ObjectFactory;
+import org.gradle.api.plugins.ExtensionAware;
 import org.gradle.api.plugins.PluginContainer;
 import org.gradle.api.plugins.jvm.internal.JvmEcosystemUtilities;
 import org.gradle.api.plugins.scala.ScalaBasePlugin;
 import org.gradle.api.services.BuildServiceRegistry;
 import org.gradle.api.tasks.ScalaRuntime;
-import org.gradle.api.tasks.ScalaSourceSet;
+import org.gradle.api.tasks.ScalaSourceDirectorySet;
 import org.gradle.api.tasks.TaskContainer;
 import org.gradle.api.tasks.scala.ScalaCompile;
 import org.gradle.api.tasks.scala.ScalaCompileOptions;
@@ -56,15 +56,14 @@ public class ScalaAndroidPlugin extends ScalaBasePlugin {
         super.apply(project);
         ScalaRuntime scalaRuntime = project.getExtensions().getByType(ScalaRuntime.class);
         var androidPlugin = findBasePlugin(project.getPlugins());
-
         LOGGER.debug("Found Plugin: {}", androidPlugin);
 
         var androidExt = (BaseExtension) project.getExtensions().getByName("android");
-
         androidExt.getSourceSets().all(sourceSet -> {
-            if (sourceSet instanceof HasConvention) {
-                var sourceSetName = sourceSet.getName();
-                var sourceSetPath = project.file("src/" + sourceSetName + "/scala");
+            if (sourceSet instanceof ExtensionAware) {
+                var ext = ((ExtensionAware) sourceSet).getExtensions();
+                String sourceSetName = sourceSet.getName();
+                File sourceSetPath = project.file("src/" + sourceSetName + "/scala");
 
                 if (!sourceSetPath.exists()) {
                     LOGGER.debug("SourceSet path does not exists for {} {}", sourceSet.getName(), sourceSetPath);
@@ -72,12 +71,10 @@ public class ScalaAndroidPlugin extends ScalaBasePlugin {
                 }
 
                 sourceSet.getJava().srcDir(sourceSetPath);
-
                 var scalaSourceSet = new DefaultScalaSourceSet(sourceSetName, objectFactory) {};
-                ((HasConvention) sourceSet).getConvention().getPlugins().put("scala", scalaSourceSet);
-
                 var scalaDirectorySet = scalaSourceSet.getScala();
                 scalaDirectorySet.srcDir(sourceSetPath);
+                ext.add(ScalaSourceDirectorySet.class, "ScalaSourceDirectorySet", scalaDirectorySet);
 
                 LOGGER.debug("Created scala sourceDirectorySet at {}", scalaDirectorySet.getSrcDirs());
             }
@@ -127,15 +124,12 @@ public class ScalaAndroidPlugin extends ScalaBasePlugin {
         if (androidExtension instanceof AppExtension) {
             ((AppExtension) androidExtension).getApplicationVariants().forEach(action);
         }
-
         if (androidExtension instanceof LibraryExtension) {
             ((LibraryExtension) androidExtension).getLibraryVariants().forEach(action);
         }
-
         if (androidExtension instanceof TestExtension) {
             ((TestExtension) androidExtension).getApplicationVariants().forEach(action);
         }
-
         if (androidExtension instanceof TestedExtension) {
             ((TestedExtension) androidExtension).getTestVariants().forEach(action);
             ((TestedExtension) androidExtension).getUnitTestVariants().forEach(action);
@@ -186,12 +180,10 @@ public class ScalaAndroidPlugin extends ScalaBasePlugin {
         var providers = variantData.getSourceSets();
 
         providers.forEach(provider -> {
-            if (provider instanceof HasConvention) {
-                var hasConvention = (HasConvention) provider;
-
-                var scalaSourceSet = (ScalaSourceSet) hasConvention.getConvention().getPlugins().get("scala");
-                if (scalaSourceSet != null) {
-                    SourceDirectorySet srcDirSet = scalaSourceSet.getScala();
+            if(provider instanceof ExtensionAware) {
+                var ext = ((ExtensionAware) provider).getExtensions();
+                try {
+                    SourceDirectorySet srcDirSet = ext.getByType(ScalaSourceDirectorySet.class);
                     var allFiles = srcDirSet.plus(project.getLayout().files(additionalSourceFiles));
                     scalaTask.setSource(allFiles);
 
@@ -199,6 +191,8 @@ public class ScalaAndroidPlugin extends ScalaBasePlugin {
                             .map(File::getAbsolutePath)
                             .collect(Collectors.toSet());
                     javaTask.exclude(scalaFiles);
+                } catch(UnknownDomainObjectException u) {
+                    // pass through
                 }
             }
         });
