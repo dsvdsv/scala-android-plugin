@@ -4,6 +4,11 @@ import com.android.build.gradle.*;
 import com.android.build.gradle.api.BaseVariant;
 import com.android.build.gradle.api.SourceKind;
 import com.android.build.gradle.internal.plugins.BasePlugin;
+import com.android.build.gradle.internal.services.BuildServicesKt;
+import com.android.build.gradle.options.BooleanOption;
+import com.android.build.gradle.options.ProjectOptionService;
+import com.android.build.gradle.options.ProjectOptions;
+import com.android.build.gradle.options.StringOption;
 import org.gradle.api.*;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.dsl.DependencyHandler;
@@ -24,6 +29,7 @@ import org.gradle.api.plugins.internal.DefaultJavaPluginExtension;
 import org.gradle.api.plugins.jvm.internal.JvmEcosystemUtilities;
 import org.gradle.api.plugins.scala.ScalaBasePlugin;
 import org.gradle.api.plugins.scala.ScalaPluginExtension;
+import org.gradle.api.services.BuildServiceRegistry;
 import org.gradle.api.tasks.ScalaRuntime;
 import org.gradle.api.tasks.ScalaSourceSet;
 import org.gradle.api.tasks.TaskContainer;
@@ -66,8 +72,7 @@ public class ScalaAndroidPlugin implements Plugin<Project> {
     }
 
     public void apply(Project project) {
-        var scalaRuntime = project.getExtensions().create("scalaRuntime", AndroidScalaRuntime.class, project);
-
+        var scalaRuntime = project.getExtensions().create("scalaRuntime", ScalaRuntime.class, project);
         var scalaPluginExtension = project.getExtensions().create(ScalaPluginExtension.class, "scala", DefaultScalaPluginExtension.class);
         var incrementalAnalysisUsage = objectFactory.named(Usage.class, "incremental-analysis");
         Category incrementalAnalysisCategory = objectFactory.named(Category.class, "scala-analysis");
@@ -101,6 +106,15 @@ public class ScalaAndroidPlugin implements Plugin<Project> {
                 LOGGER.debug("Created scala sourceDirectorySet at {}", scalaDirectorySet.getSrcDirs());
             }
         });
+
+        BuildServiceRegistry sharedServices = project.getGradle().getSharedServices();
+        ProjectOptionService optionService = BuildServicesKt.getBuildService(sharedServices, ProjectOptionService.class).get();
+        ProjectOptions options = optionService.getProjectOptions();
+        String jetifierIgnoreList = options.get(StringOption.JETIFIER_IGNORE_LIST); // Alternatively, project.property("android.jetifier.ignorelist")
+        boolean enableJetifier = options.get(BooleanOption.ENABLE_JETIFIER); // Alternatively, project.property("android.enableJetifier")
+        if(enableJetifier && (jetifierIgnoreList == null || !jetifierIgnoreList.contains("scala"))) {
+            throw new GradleException("If jetifier is enabled, \"android.jetifier.ignorelist=scala\" should be defined in gradle.properties.");
+        }
 
         project.afterEvaluate(p -> {
             forEachVariant(androidExt, variant -> processVariant(variant, project, scalaRuntime, androidExt));
