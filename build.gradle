@@ -1,6 +1,6 @@
 buildscript {
     ext {
-        androidVersion = '7.0.0'
+        androidVersion = '8.0.1'
     }
 }
 
@@ -16,7 +16,7 @@ repositories {
     jcenter()
 }
 
-tasks.withType(JavaCompile) {
+tasks.withType(JavaCompile).configureEach {
     options.compilerArgs << '-Xlint:unchecked'
     options.deprecation = true
 }
@@ -27,7 +27,7 @@ version = new Date().format('yyyyMMdd.HHmm')
 dependencies {
     implementation "com.android.tools.build:gradle:$androidVersion"
     // Use JUnit test framework for unit tests
-    testImplementation('org.codehaus.groovy:groovy-all:3.0.7')
+    testImplementation('org.codehaus.groovy:groovy-all:3.0.17')
     testImplementation('org.spockframework:spock-core:2.2-M2-groovy-3.0')
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.8.2'
