@@ -1,6 +1,6 @@
 buildscript {
     ext {
-        androidVersion = '8.0.1'
+        androidVersion = '8.2.0'
     }
 }
 
