@@ -16,7 +16,7 @@ import org.gradle.api.internal.tasks.DefaultScalaSourceSet;
 import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.plugins.ExtensionAware;
 import org.gradle.api.plugins.PluginContainer;
-import org.gradle.api.plugins.jvm.internal.JvmEcosystemUtilities;
+import org.gradle.api.plugins.jvm.internal.JvmPluginServices;
 import org.gradle.api.plugins.scala.ScalaBasePlugin;
 import org.gradle.api.services.BuildServiceRegistry;
 import org.gradle.api.tasks.ScalaRuntime;
@@ -47,8 +47,8 @@ public class ScalaAndroidPlugin extends ScalaBasePlugin {
     private final ObjectFactory objectFactory;
 
     @Inject
-    public ScalaAndroidPlugin(ObjectFactory objectFactory, JvmEcosystemUtilities jvmEcosystemUtilities) {
-        super(objectFactory,jvmEcosystemUtilities);
+    public ScalaAndroidPlugin(ObjectFactory objectFactory, JvmPluginServices jvmPluginServices) {
+        super(objectFactory, jvmPluginServices);
         this.objectFactory = objectFactory;
     }
 
@@ -231,10 +231,11 @@ public class ScalaAndroidPlugin extends ScalaBasePlugin {
         // https://docs.gradle.org/8.1.1/userguide/validation_problems.html#implicit_dependency
         String capitalizedName = variantName.substring(0,1).toUpperCase() + variantName.substring(1);
         dependsOnIfPresent(tasks, "process" + capitalizedName + "JavaRes", scalaTask);
-        dependsOnIfPresent(tasks, "merge" + capitalizedName + "JavaResource", scalaTask);
         dependsOnIfPresent(tasks, "dexBuilder" + capitalizedName, scalaTask);
         dependsOnIfPresent(tasks, "transform" + capitalizedName + "ClassesWithAsm", scalaTask);
         dependsOnIfPresent(tasks, "lintVitalAnalyze" + capitalizedName, scalaTask);
+        dependsOnIfPresent(tasks, "bundle" + capitalizedName + "ClassesToCompileJar", scalaTask);
+        dependsOnIfPresent(tasks, "generate" + capitalizedName + "LintVitalReportModel", scalaTask);
     }
 
     private static void configureCompileOptions(ScalaCompileOptions scalaCompileOptions, BaseExtension androidExtension) {
