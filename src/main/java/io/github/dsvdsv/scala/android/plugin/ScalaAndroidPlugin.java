@@ -235,6 +235,7 @@ public class ScalaAndroidPlugin extends ScalaBasePlugin {
         dependsOnIfPresent(tasks, "transform" + capitalizedName + "ClassesWithAsm", scalaTask);
         dependsOnIfPresent(tasks, "lintVitalAnalyze" + capitalizedName, scalaTask);
         dependsOnIfPresent(tasks, "bundle" + capitalizedName + "ClassesToCompileJar", scalaTask);
+        dependsOnIfPresent(tasks, "generate" + capitalizedName + "LintVitalReportModel", scalaTask);
     }
 
     private static void configureCompileOptions(ScalaCompileOptions scalaCompileOptions, BaseExtension androidExtension) {
